@@ -1,7 +1,8 @@
-use std::{thread, time::Duration};
+mod sorter;
 
 use eframe::egui;
 use rand::seq::SliceRandom;
+use sorter::Sorter;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
@@ -13,21 +14,25 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 struct MyApp {
-    data: Vec<u32>,
-    swaped: (usize, usize),
-    sorting: bool,
+    sorter: Sorter
 }
 
 impl Default for MyApp {
     fn default() -> Self {
+        let mut data = (1..=50).collect::<Vec<u32>>();
+        data.shuffle(&mut rand::thread_rng());
+
         Self {
-            data: {
-                let mut data = (1..=50).collect::<Vec<u32>>();
-                data.shuffle(&mut rand::thread_rng());
-                data
-            }, // Initial dataset
-            swaped: (0, 0),
-            sorting: false,
+            sorter: Sorter::new(data, |int| {
+                let len = int.len();
+                for i in 0..len {
+                    for j in 0..len - i - 1 {
+                        if int.read(j) > int.read(j + 1) {
+                            int.swap(j, j + 1);
+                        }
+                    }
+                }
+            })
         }
     }
 }
@@ -35,30 +40,25 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Create a vertical layout for the widgets
             ui.vertical(|ui| {
-                // Label
+                let (state, condv) = &*self.sorter.state;
+                let mut state = state.lock().unwrap();
+
                 ui.label("Sorting Visualization");
 
-                // Button
-                if ui.button("Start Sorting").clicked() {
-                    self.sorting = true;
-                }
+                let button = ui.button("Start Sorting");
 
-                // Add more space
                 ui.add_space(20.0);
 
-                // Reserve specific space for the graph
                 let (_, graph_area) =
                     ui.allocate_space(egui::vec2(ui.available_width(), ui.available_height()));
 
-                // Draw the graph within the reserved area
                 let painter = ui.painter_at(graph_area);
-                let bar_width = graph_area.size().x / self.data.len() as f32;
+                let bar_width = graph_area.size().x / state.data.len() as f32;
 
-                for (i, &value) in self.data.iter().enumerate() {
+                for (i, &value) in state.data.iter().enumerate() {
                     let bar_height = graph_area.size().y
-                        * (value as f32 / *self.data.iter().max().unwrap() as f32);
+                        * (value as f32 / *state.data.iter().max().unwrap() as f32);
                     let bar_rect = egui::Rect::from_min_size(
                         egui::pos2(
                             graph_area.min.x + i as f32 * bar_width,
@@ -67,42 +67,23 @@ impl eframe::App for MyApp {
                         egui::vec2(bar_width - 2.0, bar_height),
                     );
 
-                    let color = if self.sorting && (i == self.swaped.0 || i == self.swaped.1) {
-                        egui::Color32::RED
-                    } else {
-                        egui::Color32::LIGHT_BLUE
+                    let color = match state.step {
+                        Some(sorter::Step::Read(j)) if j == i => egui::Color32::GREEN,
+                        Some(sorter::Step::Swap(j, k)) if j == i || k == i => egui::Color32::RED,
+                        _ => egui::Color32::LIGHT_BLUE,
                     };
-
                     painter.rect_filled(bar_rect, 0.0, color);
+                }
+
+                if button.clicked() {
+                    state.sorting = true;
+                }
+
+                if state.sorting {
+                    condv.notify_all();
+                    ctx.request_repaint();
                 }
             });
         });
-
-        // Sorting logic (Bubble Sort)
-        if self.sorting {
-            'outer: loop {
-                let mut sorted = true;
-                for i in 0..(self.data.len() - 1) {
-                    if self.data[i] > self.data[i + 1] {
-                        self.data.swap(i, i + 1);
-
-                        self.swaped.0 = i;
-                        self.swaped.1 = i + 1;
-                        ctx.request_repaint(); // Why doesn't it update?
-
-                        sorted = false;
-                    }
-
-                    thread::sleep(Duration::from_millis(1));
-                }
-
-                if sorted {
-                    break 'outer;
-                }
-            }
-
-            self.sorting = false;
-            ctx.request_repaint();
-        }
     }
 }
