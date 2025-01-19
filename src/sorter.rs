@@ -49,7 +49,6 @@ pub struct State {
 pub struct Sorter {
     pub state: Arc<(Mutex<State>, Condvar)>,
     pub thread: JoinHandle<()>,
-    #[allow(dead_code)]
     method: Method
 }
 
