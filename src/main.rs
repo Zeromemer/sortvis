@@ -14,7 +14,7 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 struct MyApp {
-    sorter: Sorter
+    sorter: Sorter,
 }
 
 impl Default for MyApp {
@@ -32,7 +32,7 @@ impl Default for MyApp {
                         }
                     }
                 }
-            })
+            }),
         }
     }
 }
@@ -41,9 +41,8 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                
                 ui.label("Sorting Visualization");
-                
+
                 if ui.button("Start Sorting").clicked() {
                     self.sorter.start();
                 }

@@ -1,14 +1,13 @@
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{spawn, JoinHandle};
-
 
 pub enum Step {
     Read(usize),
-    Swap(usize, usize)
+    Swap(usize, usize),
 }
 
 pub struct Interface {
-    state: Arc<(Mutex<State>, Condvar)>
+    state: Arc<(Mutex<State>, Condvar)>,
 }
 
 impl Interface {
@@ -43,13 +42,13 @@ type Method = fn(Interface);
 pub struct State {
     pub sorting: bool,
     pub data: Vec<u32>,
-    pub step: Option<Step>
+    pub step: Option<Step>,
 }
 
 pub struct Sorter {
     pub state: Arc<(Mutex<State>, Condvar)>,
     method: Method,
-    pub thread: Option<JoinHandle<()>>
+    pub thread: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
@@ -58,15 +57,15 @@ impl Sorter {
             Mutex::new(State {
                 sorting: false,
                 data,
-                step: None
+                step: None,
             }),
-            Condvar::new()
+            Condvar::new(),
         ));
 
         Self {
             state,
             method,
-            thread: None
+            thread: None,
         }
     }
 
@@ -74,19 +73,19 @@ impl Sorter {
         let state = self.state.clone();
         let (state1, _) = &*state.clone();
         let mut state1 = state1.lock().unwrap();
-        
+
         if state1.sorting {
             return;
         }
         state1.sorting = true;
 
         let method = self.method;
-        
+
         self.thread = Some(spawn(move || {
             let state2 = state.clone();
-            
+
             method(Interface::new(state2.clone()));
-            
+
             let mut state2 = state2.0.lock().unwrap();
             state2.sorting = false;
             state2.step = None;
