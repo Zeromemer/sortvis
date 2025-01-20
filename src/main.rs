@@ -26,10 +26,15 @@ impl Default for MyApp {
             sorter: Sorter::new(data, |int| {
                 let len = int.len();
                 for i in 0..len {
+                    let mut sorted = true;
                     for j in 0..len - i - 1 {
                         if int.read(j) > int.read(j + 1) {
                             int.swap(j, j + 1);
+                            sorted = false;
                         }
+                    }
+                    if sorted {
+                        break;
                     }
                 }
             }),
