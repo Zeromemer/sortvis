@@ -41,12 +41,15 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                let (state, condv) = &*self.sorter.state;
-                let mut state = state.lock().unwrap();
-
+                
                 ui.label("Sorting Visualization");
+                
+                if ui.button("Start Sorting").clicked() {
+                    self.sorter.start();
+                }
 
-                let button = ui.button("Start Sorting");
+                let (state, condv) = &*self.sorter.state;
+                let state = state.lock().unwrap();
 
                 ui.add_space(20.0);
 
@@ -73,10 +76,6 @@ impl eframe::App for MyApp {
                         _ => egui::Color32::LIGHT_BLUE,
                     };
                     painter.rect_filled(bar_rect, 0.0, color);
-                }
-
-                if button.clicked() {
-                    state.sorting = true;
                 }
 
                 if state.sorting {

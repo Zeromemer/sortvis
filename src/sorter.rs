@@ -48,8 +48,8 @@ pub struct State {
 
 pub struct Sorter {
     pub state: Arc<(Mutex<State>, Condvar)>,
-    pub thread: JoinHandle<()>,
-    method: Method
+    method: Method,
+    pub thread: Option<JoinHandle<()>>
 }
 
 impl Sorter {
@@ -62,22 +62,34 @@ impl Sorter {
             }),
             Condvar::new()
         ));
-        let state1 = state.clone();
-
-        let thread = spawn(move || {
-            let state2 = state1.clone();
-            
-            method(Interface::new(state2.clone()));
-            
-            let mut state3 = state2.0.lock().unwrap();
-            state3.sorting = false;
-            state3.step = None;
-        });
 
         Self {
             state,
-            thread,
-            method
+            method,
+            thread: None
         }
+    }
+
+    pub fn start(&mut self) {
+        let state = self.state.clone();
+        let (state1, _) = &*state.clone();
+        let mut state1 = state1.lock().unwrap();
+        
+        if state1.sorting {
+            return;
+        }
+        state1.sorting = true;
+
+        let method = self.method;
+        
+        self.thread = Some(spawn(move || {
+            let state2 = state.clone();
+            
+            method(Interface::new(state2.clone()));
+            
+            let mut state2 = state2.0.lock().unwrap();
+            state2.sorting = false;
+            state2.step = None;
+        }));
     }
 }
