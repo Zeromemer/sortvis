@@ -9,15 +9,15 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Sorting Visualization",
         options,
-        Box::new(|_cc| Ok(Box::new(MyApp::default()))),
+        Box::new(|_cc| Ok(Box::new(SortVis::default()))),
     )
 }
 
-struct MyApp {
+struct SortVis {
     sorter: Sorter,
 }
 
-impl Default for MyApp {
+impl Default for SortVis {
     fn default() -> Self {
         let mut data = (1..=50).collect::<Vec<u32>>();
         data.shuffle(&mut rand::thread_rng());
@@ -42,7 +42,7 @@ impl Default for MyApp {
     }
 }
 
-impl eframe::App for MyApp {
+impl eframe::App for SortVis {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
