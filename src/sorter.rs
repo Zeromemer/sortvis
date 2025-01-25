@@ -37,7 +37,10 @@ impl Interface {
     }
 }
 
-type Method = fn(Interface);
+pub struct Method {
+    pub name: &'static str,
+    pub func: fn(Interface),
+}
 
 pub struct State {
     pub sorting: bool,
@@ -47,12 +50,12 @@ pub struct State {
 
 pub struct Sorter {
     pub state: Arc<(Mutex<State>, Condvar)>,
-    method: Method,
+    pub method: Option<fn(Interface)>,
     pub thread: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
-    pub fn new(data: Vec<u32>, method: Method) -> Self {
+    pub fn new(data: Vec<u32>) -> Self {
         let state = Arc::new((
             Mutex::new(State {
                 sorting: false,
@@ -64,7 +67,7 @@ impl Sorter {
 
         Self {
             state,
-            method,
+            method: None,
             thread: None,
         }
     }
@@ -79,16 +82,18 @@ impl Sorter {
         }
         state1.sorting = true;
 
-        let method = self.method;
+        if let Some(method) = self.method {
+            self.thread = Some(spawn(move || {
+                let state2 = state.clone();
 
-        self.thread = Some(spawn(move || {
-            let state2 = state.clone();
+                method(Interface::new(state2.clone()));
 
-            method(Interface::new(state2.clone()));
-
-            let mut state2 = state2.0.lock().unwrap();
-            state2.sorting = false;
-            state2.step = None;
-        }));
+                let mut state2 = state2.0.lock().unwrap();
+                state2.sorting = false;
+                state2.step = None;
+            }));
+        } else {
+            panic!("No method");
+        }
     }
 }
