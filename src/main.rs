@@ -4,7 +4,7 @@ mod methods;
 mod sorter;
 
 use eframe::egui;
-use egui::TextEdit;
+use egui::{TextEdit, ComboBox};
 use methods::METHODS;
 use sorter::Sorter;
 
@@ -50,7 +50,7 @@ impl eframe::App for SortVis {
                     let pressed_enter =
                         re.lost_focus() && ctx.input(|input| input.key_down(egui::Key::Enter));
 
-                    if !state.sorting && clicked || pressed_enter {
+                    if !state.sorting && (clicked || pressed_enter) {
                         if let Ok(data_size) = self.data_size_text.parse::<u32>() {
                             state.data = (1..=data_size).collect();
                         }
@@ -58,7 +58,7 @@ impl eframe::App for SortVis {
                     }
                 });
 
-                egui::ComboBox::from_label("Select Sorting Method")
+                ComboBox::from_label("Select Sorting Method")
                     .selected_text(METHODS[self.selected_method].name)
                     .show_ui(ui, |ui| {
                         for (i, method) in METHODS.iter().enumerate() {
