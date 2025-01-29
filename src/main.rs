@@ -4,7 +4,7 @@ mod methods;
 mod sorter;
 
 use eframe::egui;
-use egui::{TextEdit, ComboBox};
+use egui::{ComboBox, TextEdit};
 use methods::METHODS;
 use sorter::Sorter;
 
@@ -80,13 +80,13 @@ impl eframe::App for SortVis {
                 let (_, graph_area) =
                     ui.allocate_space(egui::vec2(ui.available_width(), ui.available_height()));
 
-                    let max_value = *state.data.iter().max().unwrap();
-                    let painter = ui.painter_at(graph_area);
-                    let bar_width = graph_area.size().x / state.data.len() as f32;
-    
-                    for (i, &value) in state.data.iter().enumerate() {
-                        let bar_height = graph_area.size().y * (value as f32 / max_value as f32);
-                        let bar_rect = egui::Rect::from_min_size(
+                let max_value = *state.data.iter().max().unwrap();
+                let painter = ui.painter_at(graph_area);
+                let bar_width = graph_area.size().x / state.data.len() as f32;
+
+                for (i, &value) in state.data.iter().enumerate() {
+                    let bar_height = graph_area.size().y * (value as f32 / max_value as f32);
+                    let bar_rect = egui::Rect::from_min_size(
                         egui::pos2(
                             graph_area.min.x + i as f32 * bar_width,
                             graph_area.max.y - bar_height,

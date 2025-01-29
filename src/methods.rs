@@ -1,4 +1,4 @@
-use crate::sorter::Method;
+use crate::sorter::{Interface, Method};
 use rand::Rng;
 
 pub static METHODS: &[Method] = &[
@@ -51,6 +51,36 @@ pub static METHODS: &[Method] = &[
                     int.swap(i, j);
                 }
             }
+        },
+    },
+    Method {
+        name: "quick",
+        func: |int| {
+            fn quick_sort(int: &Interface, lo: usize, hi: usize) {
+                if lo < hi {
+                    let pivot = int.read(lo);
+                    let mut i = lo;
+                    let mut j = hi;
+
+                    let p = loop {
+                        while int.read(i) < pivot {
+                            i += 1;
+                        }
+                        while int.read(j) > pivot {
+                            j -= 1;
+                        }
+                        if i >= j {
+                            break j;
+                        }
+                        int.swap(i, j);
+                    };
+
+                    quick_sort(int, lo, p);
+                    quick_sort(int, p + 1, hi);
+                }
+            }
+
+            quick_sort(&int, 0, int.len() - 1);
         },
     },
 ];
