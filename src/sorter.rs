@@ -16,39 +16,36 @@ impl Interface {
         Self { state }
     }
 
-    pub fn read(&self, i: usize) -> u32 {
+    fn modify_state<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut State) -> T,
+    {
         if let Some(state) = self.state.upgrade() {
             let (state, cvar) = &*state;
             let mut state = state.lock().unwrap();
             state = cvar.wait(state).unwrap();
+            (f)(&mut state)
+        } else {
+            panic!("sorter stopped, terminating thread");
+        }
+    }
+
+    pub fn read(&self, i: usize) -> u32 {
+        self.modify_state(|state| {
             state.step = Some(Step::Read(i));
             state.data[i]
-        } else {
-            panic!("sorting stopped, terminating thread");
-        }
+        })
     }
 
     pub fn swap(&self, i: usize, j: usize) {
-        if let Some(state) = self.state.upgrade() {
-            let (state, cvar) = &*state;
-            let mut state = state.lock().unwrap();
-            state = cvar.wait(state).unwrap();
+        self.modify_state(|state| {
             state.step = Some(Step::Swap(i, j));
             state.data.swap(i, j);
-        } else {
-            panic!("sorting stopped, terminating thread");
-        }
+        })
     }
 
     pub fn len(&self) -> usize {
-        if let Some(state) = self.state.upgrade() {
-            let (state, cvar) = &*state;
-            let mut state = state.lock().unwrap();
-            state = cvar.wait(state).unwrap();
-            state.data.len()
-        } else {
-            panic!("sorting stopped, terminating thread");
-        }
+        self.modify_state(|state| state.data.len())
     }
 }
 
