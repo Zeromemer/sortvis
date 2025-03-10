@@ -1,39 +1,54 @@
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{spawn, JoinHandle};
 
+#[derive(Clone)]
 pub enum Step {
     Read(usize),
     Swap(usize, usize),
 }
 
 pub struct Interface {
-    state: Arc<(Mutex<State>, Condvar)>,
+    state: Weak<(Mutex<State>, Condvar)>,
 }
 
 impl Interface {
-    pub fn new(state: Arc<(Mutex<State>, Condvar)>) -> Interface {
+    pub fn new(state: Weak<(Mutex<State>, Condvar)>) -> Interface {
         Self { state }
     }
 
     pub fn read(&self, i: usize) -> u32 {
-        let (state, cvar) = &*self.state;
-        let mut state = state.lock().unwrap();
-        state = cvar.wait(state).unwrap();
-        state.step = Some(Step::Read(i));
-        state.data[i]
+        if let Some(state) = self.state.upgrade() {
+            let (state, cvar) = &*state;
+            let mut state = state.lock().unwrap();
+            state = cvar.wait(state).unwrap();
+            state.step = Some(Step::Read(i));
+            state.data[i]
+        } else {
+            panic!("sorting stopped, terminating thread");
+        }
     }
 
     pub fn swap(&self, i: usize, j: usize) {
-        let (state, cvar) = &*self.state;
-        let mut state = state.lock().unwrap();
-        state = cvar.wait(state).unwrap();
-        state.step = Some(Step::Swap(i, j));
-        state.data.swap(i, j);
+        if let Some(state) = self.state.upgrade() {
+            let (state, cvar) = &*state;
+            let mut state = state.lock().unwrap();
+            state = cvar.wait(state).unwrap();
+            state.step = Some(Step::Swap(i, j));
+            state.data.swap(i, j);
+        } else {
+            panic!("sorting stopped, terminating thread");
+        }
     }
 
     pub fn len(&self) -> usize {
-        let (state, _) = &*self.state;
-        state.lock().unwrap().data.len()
+        if let Some(state) = self.state.upgrade() {
+            let (state, cvar) = &*state;
+            let mut state = state.lock().unwrap();
+            state = cvar.wait(state).unwrap();
+            state.data.len()
+        } else {
+            panic!("sorting stopped, terminating thread");
+        }
     }
 }
 
@@ -42,6 +57,7 @@ pub struct Method {
     pub func: fn(Interface),
 }
 
+#[derive(Clone)]
 pub struct State {
     pub sorting: bool,
     pub data: Vec<u32>,
@@ -74,26 +90,40 @@ impl Sorter {
 
     pub fn start(&mut self) {
         let state = self.state.clone();
-        let (state1, _) = &*state.clone();
-        let mut state1 = state1.lock().unwrap();
+        {
+            let (state1, _) = &*state.clone();
+            let mut state1 = state1.lock().unwrap();
 
-        if state1.sorting {
-            return;
+            if state1.sorting {
+                return;
+            }
+            state1.sorting = true;
         }
-        state1.sorting = true;
 
         if let Some(method) = self.method {
             self.thread = Some(spawn(move || {
-                let state2 = state.clone();
+                let state2 = Arc::downgrade(&state);
+                drop(state);
 
                 method(Interface::new(state2.clone()));
 
-                let mut state2 = state2.0.lock().unwrap();
+                let (state2, _) = &*state2.upgrade().unwrap();
+                let mut state2 = state2.lock().unwrap();
                 state2.sorting = false;
                 state2.step = None;
             }));
         } else {
             panic!("No method");
         }
+    }
+
+    pub fn stop(&mut self) {
+        let state_clone = self.state.clone();
+        let (state, cvar) = &*state_clone;
+        let mut state = state.lock().unwrap();
+        state.sorting = false;
+        state.step = None;
+        self.state = Arc::new((Mutex::new(state.clone()), Condvar::new()));
+        cvar.notify_one();
     }
 }

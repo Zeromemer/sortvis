@@ -66,11 +66,17 @@ impl eframe::App for SortVis {
                         }
                     });
 
-                if ui.button("Start Sorting").clicked() {
-                    let selected_method = METHODS[self.selected_method].func;
-                    self.sorter.method = Some(selected_method);
-                    self.sorter.start();
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Start Sorting").clicked() {
+                        let selected_method = METHODS[self.selected_method].func;
+                        self.sorter.method = Some(selected_method);
+                        self.sorter.start();
+                    }
+
+                    if ui.button("Stop Sorting").clicked() {
+                        self.sorter.stop();
+                    }
+                });
 
                 let (state, condv) = &*self.sorter.state;
                 let state = state.lock().unwrap();
