@@ -98,4 +98,23 @@ pub static METHODS: &[Method] = &[
             }
         },
     },
+    Method {
+        name: "selection",
+        func: |int| {
+            let len = int.len();
+            for i in 0..len {
+                let mut min_index = i;
+                let mut min_value = int.read(i);
+                for j in (i + 1)..len {
+                    if int.read(j) < min_value {
+                        min_index = j;
+                        min_value = int.read(j);
+                    }
+                }
+                if min_index != i {
+                    int.swap(i, min_index);
+                }
+            }
+        },
+    },
 ];
