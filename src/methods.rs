@@ -83,4 +83,19 @@ pub static METHODS: &[Method] = &[
             quick_sort(&int, 0, int.len() - 1);
         },
     },
+    Method {
+        name: "insertion",
+        func: |int| {
+            let len = int.len();
+            for i in 1..len {
+                let key = int.read(i);
+                let mut j = i;
+
+                while j > 0 && int.read(j - 1) > key {
+                    int.swap(j, j - 1);
+                    j -= 1;
+                }
+            }
+        },
+    },
 ];
