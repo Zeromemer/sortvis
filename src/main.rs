@@ -43,7 +43,7 @@ impl eframe::App for SortVis {
                     let re =
                         ui.add(TextEdit::singleline(&mut self.data_size_text).desired_width(50.0));
 
-                    let (state, _) = &*self.sorter.state;
+                    let state = &*self.sorter.state;
                     let mut state = state.lock().unwrap();
 
                     let clicked = ui.button("Generate").clicked();
@@ -78,7 +78,7 @@ impl eframe::App for SortVis {
                     }
                 });
 
-                let (state, condv) = &*self.sorter.state;
+                let state = &*self.sorter.state;
                 let state = state.lock().unwrap();
 
                 ui.add_space(20.0);
@@ -109,7 +109,7 @@ impl eframe::App for SortVis {
                 }
 
                 if state.sorting {
-                    condv.notify_all();
+                    self.sorter.step();
                     ctx.request_repaint();
                 }
             });

@@ -1,4 +1,5 @@
-use std::sync::{Arc, Condvar, Mutex, Weak};
+use std::sync::{Arc, Mutex, Weak};
+use std::thread;
 use std::thread::{spawn, JoinHandle};
 
 #[derive(Clone)]
@@ -8,11 +9,11 @@ pub enum Step {
 }
 
 pub struct Interface {
-    state: Weak<(Mutex<State>, Condvar)>,
+    state: Weak<Mutex<State>>,
 }
 
 impl Interface {
-    pub fn new(state: Weak<(Mutex<State>, Condvar)>) -> Interface {
+    pub fn new(state: Weak<Mutex<State>>) -> Interface {
         Self { state }
     }
 
@@ -21,9 +22,8 @@ impl Interface {
         F: FnOnce(&mut State) -> T,
     {
         if let Some(state) = self.state.upgrade() {
-            let (state, cvar) = &*state;
+            thread::park();
             let mut state = state.lock().unwrap();
-            state = cvar.wait(state).unwrap();
             (f)(&mut state)
         } else {
             panic!("sorter stopped, terminating thread");
@@ -62,21 +62,18 @@ pub struct State {
 }
 
 pub struct Sorter {
-    pub state: Arc<(Mutex<State>, Condvar)>,
+    pub state: Arc<Mutex<State>>,
     pub method: Option<fn(Interface)>,
     pub thread: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
     pub fn new(data: Vec<u32>) -> Self {
-        let state = Arc::new((
-            Mutex::new(State {
-                sorting: false,
-                data,
-                step: None,
-            }),
-            Condvar::new(),
-        ));
+        let state = Arc::new(Mutex::new(State {
+            sorting: false,
+            data,
+            step: None,
+        }));
 
         Self {
             state,
@@ -88,7 +85,7 @@ impl Sorter {
     pub fn start(&mut self) {
         let state = self.state.clone();
         {
-            let (state1, _) = &*state.clone();
+            let state1 = state.clone();
             let mut state1 = state1.lock().unwrap();
 
             if state1.sorting {
@@ -104,7 +101,7 @@ impl Sorter {
 
                 method(Interface::new(state2.clone()));
 
-                let (state2, _) = &*state2.upgrade().unwrap();
+                let state2 = state2.upgrade().unwrap();
                 let mut state2 = state2.lock().unwrap();
                 state2.sorting = false;
                 state2.step = None;
@@ -114,13 +111,19 @@ impl Sorter {
         }
     }
 
+    pub fn step(&self) {
+        if let Some(thread) = &self.thread {
+            thread.thread().unpark();
+        }
+    }
+
     pub fn stop(&mut self) {
         let state_clone = self.state.clone();
-        let (state, cvar) = &*state_clone;
+        let state = state_clone;
         let mut state = state.lock().unwrap();
         state.sorting = false;
         state.step = None;
-        self.state = Arc::new((Mutex::new(state.clone()), Condvar::new()));
-        cvar.notify_one();
+        self.state = Arc::new(Mutex::new(state.clone()));
+        self.step();
     }
 }
