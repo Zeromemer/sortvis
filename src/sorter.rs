@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::thread::{spawn, JoinHandle};
+use crate::{GLOBAL_STATE};
 
 #[derive(Clone)]
 pub enum Step {
@@ -22,7 +23,16 @@ impl Interface {
         F: FnOnce(&mut State) -> T,
     {
         if let Some(state) = self.state.upgrade() {
-            thread::park();
+            let global_state = GLOBAL_STATE.lock().unwrap();
+            if global_state.paused {
+                drop(global_state);
+                thread::park();
+            } else {
+                let delay = global_state.delay;
+                drop(global_state);
+                thread::sleep(std::time::Duration::from_micros(delay));
+            }
+            
             let mut state = state.lock().unwrap();
             (f)(&mut state)
         } else {
@@ -64,7 +74,7 @@ pub struct State {
 pub struct Sorter {
     pub state: Arc<Mutex<State>>,
     pub method: Option<fn(Interface)>,
-    pub thread: Option<JoinHandle<()>>,
+    thread: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
@@ -111,7 +121,7 @@ impl Sorter {
         }
     }
 
-    pub fn step(&self) {
+    pub fn resume(&self) {
         if let Some(thread) = &self.thread {
             thread.thread().unpark();
         }
@@ -124,6 +134,8 @@ impl Sorter {
         state.sorting = false;
         state.step = None;
         self.state = Arc::new(Mutex::new(state.clone()));
-        self.step();
+        if let Some(thread) = &self.thread {
+            thread.thread().unpark();
+        }
     }
 }

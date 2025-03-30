@@ -7,6 +7,19 @@ use eframe::egui;
 use egui::{ComboBox, TextEdit};
 use methods::METHODS;
 use sorter::Sorter;
+use std::sync::Mutex;
+
+struct State {
+    paused: bool,
+    delay: u64,
+}
+
+lazy_static::lazy_static! {
+    static ref GLOBAL_STATE: Mutex<State> = Mutex::new(State {
+        paused: false,
+        delay: 3000,
+    });
+}
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
@@ -76,6 +89,28 @@ impl eframe::App for SortVis {
                     if ui.button("Stop Sorting").clicked() {
                         self.sorter.stop();
                     }
+
+                    let mut global_state = GLOBAL_STATE.lock().unwrap();
+                    let state = self.sorter.state.lock().unwrap();
+                    let button = ui.add_enabled(
+                        state.sorting,
+                        egui::Button::new(if global_state.paused { "Resume" } else { "Pause" }),
+                    );
+                    if button.clicked() && state.sorting {
+                        global_state.paused = !global_state.paused;
+                        if !global_state.paused {
+                            self.sorter.resume();
+                        }
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Delay");
+                    let mut delay_value = GLOBAL_STATE.lock().unwrap().delay as u64;
+
+                    if ui.add(egui::Slider::new(&mut delay_value, 0..=100000)).changed() {
+                        GLOBAL_STATE.lock().unwrap().delay = delay_value;
+                    }
                 });
 
                 let state = &*self.sorter.state;
@@ -108,8 +143,7 @@ impl eframe::App for SortVis {
                     painter.rect_filled(bar_rect, 0.0, color);
                 }
 
-                if state.sorting {
-                    self.sorter.step();
+                if state.sorting && !GLOBAL_STATE.lock().unwrap().paused {
                     ctx.request_repaint();
                 }
             });
