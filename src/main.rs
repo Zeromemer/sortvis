@@ -126,7 +126,7 @@ impl eframe::App for SortVis {
                     let mut delay_value = global_state.delay as u64;
 
                     if ui
-                        .add(egui::Slider::new(&mut delay_value, 0..=100000))
+                        .add(egui::Slider::new(&mut delay_value, 0..=100000).logarithmic(true))
                         .changed()
                     {
                         global_state.delay = delay_value;
