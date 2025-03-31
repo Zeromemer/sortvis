@@ -64,10 +64,10 @@ impl eframe::App for SortVis {
                         re.lost_focus() && ctx.input(|input| input.key_down(egui::Key::Enter));
 
                     if !state.sorting && (clicked || pressed_enter) {
-                        if let Ok(data_size) = self.data_size_text.parse::<u32>() {
-                            state.data = (1..=data_size).collect();
+                        match self.data_size_text.parse::<u32>() {
+                            Ok(data_size) => state.data = (1..=data_size).collect(),
+                            Err(_) => self.data_size_text = String::new()
                         }
-                        self.data_size_text = String::new();
                     }
                 });
 
