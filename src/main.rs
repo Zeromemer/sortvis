@@ -65,8 +65,8 @@ impl eframe::App for SortVis {
 
                     if !state.sorting && (clicked || pressed_enter) {
                         match self.data_size_text.parse::<u32>() {
+                            Err(_) | Ok(0) => self.data_size_text = String::new(),
                             Ok(data_size) => state.data = (1..=data_size).collect(),
-                            Err(_) => self.data_size_text = String::new()
                         }
                     }
                 });
