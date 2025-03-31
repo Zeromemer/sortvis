@@ -1,7 +1,7 @@
+use crate::GLOBAL_STATE;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::thread::{spawn, JoinHandle};
-use crate::{GLOBAL_STATE};
 
 #[derive(Clone)]
 pub enum Step {
@@ -32,7 +32,7 @@ impl Interface {
                 drop(global_state);
                 thread::sleep(std::time::Duration::from_micros(delay));
             }
-            
+
             let mut state = state.lock().unwrap();
             (f)(&mut state)
         } else {

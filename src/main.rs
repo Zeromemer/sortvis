@@ -79,24 +79,41 @@ impl eframe::App for SortVis {
                         }
                     });
 
+                let mut global_state = GLOBAL_STATE.lock().unwrap();
+
                 ui.horizontal(|ui| {
-                    if ui.button("Start Sorting").clicked() {
-                        let selected_method = METHODS[self.selected_method].func;
-                        self.sorter.method = Some(selected_method);
-                        self.sorter.start();
+                    let sorting_active;
+                    {
+                        let state = self.sorter.state.lock().unwrap();
+                        sorting_active = state.sorting;
                     }
 
-                    if ui.button("Stop Sorting").clicked() {
-                        self.sorter.stop();
+                    let button_label = if sorting_active {
+                        "Stop Sorting"
+                    } else {
+                        "Start Sorting"
+                    };
+
+                    if ui.button(button_label).clicked() {
+                        if sorting_active {
+                            self.sorter.stop();
+                            global_state.paused = false;
+                        } else {
+                            let selected_method = METHODS[self.selected_method].func;
+                            self.sorter.method = Some(selected_method);
+                            self.sorter.start();
+                        }
                     }
 
-                    let mut global_state = GLOBAL_STATE.lock().unwrap();
-                    let state = self.sorter.state.lock().unwrap();
                     let button = ui.add_enabled(
-                        state.sorting,
-                        egui::Button::new(if global_state.paused { "Resume" } else { "Pause" }),
+                        sorting_active,
+                        egui::Button::new(if global_state.paused {
+                            "Resume"
+                        } else {
+                            "Pause"
+                        }),
                     );
-                    if button.clicked() && state.sorting {
+                    if button.clicked() && sorting_active {
                         global_state.paused = !global_state.paused;
                         if !global_state.paused {
                             self.sorter.resume();
@@ -106,10 +123,13 @@ impl eframe::App for SortVis {
 
                 ui.horizontal(|ui| {
                     ui.label("Delay");
-                    let mut delay_value = GLOBAL_STATE.lock().unwrap().delay as u64;
+                    let mut delay_value = global_state.delay as u64;
 
-                    if ui.add(egui::Slider::new(&mut delay_value, 0..=100000)).changed() {
-                        GLOBAL_STATE.lock().unwrap().delay = delay_value;
+                    if ui
+                        .add(egui::Slider::new(&mut delay_value, 0..=100000))
+                        .changed()
+                    {
+                        global_state.delay = delay_value;
                     }
                 });
 
@@ -143,7 +163,7 @@ impl eframe::App for SortVis {
                     painter.rect_filled(bar_rect, 0.0, color);
                 }
 
-                if state.sorting && !GLOBAL_STATE.lock().unwrap().paused {
+                if state.sorting && !global_state.paused {
                     ctx.request_repaint();
                 }
             });
