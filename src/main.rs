@@ -4,8 +4,9 @@ mod methods;
 mod sorter;
 
 use eframe::egui;
+use egui::Button;
 use egui::{ComboBox, TextEdit};
-use methods::METHODS;
+use methods::{METHODS, MODIFIERS};
 use sorter::Sorter;
 use std::sync::Mutex;
 
@@ -71,6 +72,21 @@ impl eframe::App for SortVis {
                     }
                 });
 
+                let sorting_active = self.sorter.is_sorting();
+
+                ui.horizontal(|ui| {
+                    for modifier in MODIFIERS {
+                        if ui
+                            .add_enabled(!sorting_active, Button::new(modifier.name))
+                            .clicked()
+                        {
+                            let selected_method = modifier.func;
+                            self.sorter.method = Some(selected_method);
+                            self.sorter.start();
+                        }
+                    }
+                });
+
                 ComboBox::from_label("Select Sorting Method")
                     .selected_text(METHODS[self.selected_method].name)
                     .show_ui(ui, |ui| {
@@ -82,17 +98,7 @@ impl eframe::App for SortVis {
                 let mut global_state = GLOBAL_STATE.lock().unwrap();
 
                 ui.horizontal(|ui| {
-                    let sorting_active;
-                    {
-                        let state = self.sorter.state.lock().unwrap();
-                        sorting_active = state.sorting;
-                    }
-
-                    let button_label = if sorting_active {
-                        "Stop Sorting"
-                    } else {
-                        "Start Sorting"
-                    };
+                    let button_label = if sorting_active { "Stop" } else { "Start" };
 
                     if ui.button(button_label).clicked() {
                         if sorting_active {

@@ -92,6 +92,11 @@ impl Sorter {
         }
     }
 
+    pub fn is_sorting(&self) -> bool {
+        let state = self.state.lock().unwrap();
+        state.sorting
+    }
+
     pub fn start(&mut self) {
         let state = self.state.clone();
         {

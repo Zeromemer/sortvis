@@ -1,7 +1,7 @@
 use crate::sorter::{Interface, Method};
 use rand::Rng;
 
-pub static METHODS: &[Method] = &[
+pub static MODIFIERS: &[Method] = &[
     Method {
         name: "shuffle",
         func: |int| {
@@ -12,6 +12,55 @@ pub static METHODS: &[Method] = &[
             }
         },
     },
+    Method {
+        name: "invert",
+        func: |int| {
+            let len = int.len();
+            let half = len / 2;
+            for i in 0..half {
+                int.swap(i, len - i - 1);
+            }
+        },
+    },
+    Method {
+        name: "pyramid",
+        func: |int| {
+            let len = int.len();
+            if len == 0 {
+                return;
+            }
+
+            let mid = (len - 1) / 2;
+            let mut target_pos = vec![0; len];
+            let mut left = mid;
+            let mut right = mid + 1;
+
+            for i in (0..len).rev() {
+                if i % 2 == 0 {
+                    target_pos[i] = left;
+                    if left > 0 {
+                        left -= 1;
+                    }
+                } else {
+                    target_pos[i] = right;
+                    if right < len - 1 {
+                        right += 1;
+                    }
+                }
+            }
+
+            for i in 0..len {
+                while target_pos[i] != i {
+                    let swap_with = target_pos[i];
+                    int.swap(i, swap_with);
+                    target_pos.swap(i, swap_with);
+                }
+            }
+        },
+    },
+];
+
+pub static METHODS: &[Method] = &[
     Method {
         name: "bubble",
         func: |int| {
