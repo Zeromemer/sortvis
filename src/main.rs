@@ -125,6 +125,10 @@ impl eframe::App for SortVis {
                             self.sorter.resume();
                         }
                     }
+
+                    if ui.add_enabled(sorting_active, Button::new("Step")).clicked() {
+                        self.sorter.resume();
+                    }
                 });
 
                 ui.horizontal(|ui| {
