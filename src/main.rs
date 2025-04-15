@@ -4,7 +4,7 @@ mod methods;
 mod sorter;
 
 use eframe::egui;
-use egui::{Button, Style, Visuals};
+use egui::Button;
 use egui::{ComboBox, TextEdit};
 use methods::{METHODS, MODIFIERS};
 use sorter::Sorter;
