@@ -4,7 +4,7 @@ mod methods;
 mod sorter;
 
 use eframe::egui;
-use egui::Button;
+use egui::{Button, Style, Visuals};
 use egui::{ComboBox, TextEdit};
 use methods::{METHODS, MODIFIERS};
 use sorter::Sorter;
@@ -23,11 +23,17 @@ lazy_static::lazy_static! {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        ..Default::default()
+    };
     eframe::run_native(
         "Sorting Visualization",
         options,
-        Box::new(|_cc| Ok(Box::new(SortVis::default()))),
+        Box::new(|cc| {
+            cc.egui_ctx.set_theme(egui::Theme::Dark);
+
+            Ok(Box::new(SortVis::default()))    
+        }),
     )
 }
 
@@ -48,6 +54,7 @@ impl Default for SortVis {
 }
 
 impl eframe::App for SortVis {
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
