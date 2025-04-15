@@ -166,4 +166,67 @@ pub static METHODS: &[Method] = &[
             }
         },
     },
+    Method {
+        name: "gnome",
+        func: |int| {
+            let len = int.len();
+            let mut i = 0;
+            while i < len {
+                if i == 0 || int.read(i - 1) <= int.read(i) {
+                    i += 1;
+                } else {
+                    int.swap(i, i - 1);
+                    i -= 1;
+                }
+            }
+        },
+    },
+    Method {
+        name: "shell",
+        func: |int| {
+            let len = int.len();
+            let mut gap = len / 2;
+            while gap > 0 {
+                for i in gap..len {
+                    let temp = int.read(i);
+                    let mut j = i;
+                    while j >= gap && int.read(j - gap) > temp {
+                        int.swap(j, j - gap);
+                        j -= gap;
+                    }
+                }
+                gap /= 2;
+            }
+        },
+    },
+    Method {
+        name: "cocktail",
+        func: |int| {
+            let len = int.len();
+            let mut start = 0;
+            let mut end = len - 1;
+            let mut swapped = true;
+            while swapped {
+                swapped = false;
+                for i in start..end {
+                    if int.read(i) > int.read(i + 1) {
+                        int.swap(i, i + 1);
+                        swapped = true;
+                    }
+                }
+                if !swapped {
+                    break;
+                }
+                swapped = false;
+                end -= 1;
+                for i in (start..end).rev() {
+                    if int.read(i) > int.read(i + 1) {
+                        int.swap(i, i + 1);
+                        swapped = true;
+                    }
+                }
+                start += 1;
+            }
+        },
+    },
 ];
