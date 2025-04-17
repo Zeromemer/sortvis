@@ -207,7 +207,7 @@ impl eframe::App for SortVis {
                                 ui.label(row.delay.to_string());
                                 let time_us = row.time.as_millis();
                                 if time_us == 0 {
-                                    ui.label(format!("{:.3}", row.time.as_secs_f64() * 1_000.0));
+                                    ui.label(format!("{:.6}", row.time.as_secs_f64() * 1_000.0));
                                 } else {
                                     ui.label(time_us.to_string());
                                 }
