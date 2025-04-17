@@ -2,6 +2,7 @@ use crate::GLOBAL_STATE;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::thread::{spawn, JoinHandle};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub enum Step {
@@ -69,12 +70,14 @@ pub struct State {
     pub sorting: bool,
     pub data: Vec<u32>,
     pub step: Option<Step>,
+    pub start_time: Option<Instant>,
+    pub stop_time: Option<Instant>,
 }
 
 pub struct Sorter {
     pub state: Arc<Mutex<State>>,
     pub method: Option<fn(Interface)>,
-    thread: Option<JoinHandle<()>>,
+    thread: Option<JoinHandle<()>>
 }
 
 impl Sorter {
@@ -83,6 +86,8 @@ impl Sorter {
             sorting: false,
             data,
             step: None,
+            start_time: None,
+            stop_time: None,
         }));
 
         Self {
@@ -97,7 +102,7 @@ impl Sorter {
         state.sorting
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self, track: bool) {
         let state = self.state.clone();
         {
             let state1 = state.clone();
@@ -107,6 +112,9 @@ impl Sorter {
                 return;
             }
             state1.sorting = true;
+            if track {
+                state1.start_time = Some(Instant::now());
+            }
         }
 
         if let Some(method) = self.method {
@@ -120,6 +128,9 @@ impl Sorter {
                 let mut state2 = state2.lock().unwrap();
                 state2.sorting = false;
                 state2.step = None;
+                if track {
+                    state2.stop_time = Some(Instant::now());
+                }
             }));
         } else {
             panic!("No method");
@@ -138,6 +149,7 @@ impl Sorter {
         let mut state = state.lock().unwrap();
         state.sorting = false;
         state.step = None;
+        // state.stop_time = Some(Instant::now());
         self.state = Arc::new(Mutex::new(state.clone()));
         if let Some(thread) = &self.thread {
             thread.thread().unpark();
