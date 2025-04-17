@@ -9,6 +9,7 @@ use egui::{ComboBox, TextEdit};
 use methods::{METHODS, MODIFIERS};
 use sorter::Sorter;
 use std::sync::Mutex;
+use std::time::Duration;
 
 struct State {
     paused: bool,
@@ -41,7 +42,7 @@ struct SortResult {
     name: &'static str,
     data_size: u32,
     delay: u64,
-    time: u128,
+    time: Duration,
 }
 
 struct SortVis {
@@ -152,7 +153,7 @@ impl eframe::App for SortVis {
 
                     // Row 5: Delay slider
                     ui.horizontal(|ui| {
-                        ui.label("Delay");
+                        ui.label("Delay (μs)");
                         let mut d = global.delay;
                         if ui
                             .add(egui::Slider::new(&mut d, 0..=100_000).logarithmic(true))
@@ -172,7 +173,7 @@ impl eframe::App for SortVis {
                     ui.add_space(avail - table_width);
                 }
 
-
+                // Update history
                 let mut state = self.sorter.state.lock().unwrap();
                 if let Some(stop_time) = state.stop_time.take() {
                     let elapsed = stop_time.duration_since(state.start_time.unwrap());
@@ -180,7 +181,7 @@ impl eframe::App for SortVis {
                         name: METHODS[self.selected_method].name,
                         data_size: state.data.len() as u32,
                         delay: global.delay,
-                        time: elapsed.as_millis(),
+                        time: elapsed,
                     };
                     self.history.push(result);
                     if self.history.len() > 4 {
@@ -197,14 +198,19 @@ impl eframe::App for SortVis {
                         .show(ui, |ui| {
                             ui.label("Sort");
                             ui.label("Size");
-                            ui.label("Delay");
+                            ui.label("Delay (μs)");
                             ui.label("Time (ms)");
                             ui.end_row();
                             for row in self.history.iter().rev() {
                                 ui.label(row.name);
                                 ui.label(row.data_size.to_string());
                                 ui.label(row.delay.to_string());
-                                ui.label(row.time.to_string());
+                                let time_us = row.time.as_millis();
+                                if time_us == 0 {
+                                    ui.label(format!("{:.3}", row.time.as_secs_f64() * 1_000.0));
+                                } else {
+                                    ui.label(time_us.to_string());
+                                }
                                 ui.end_row();
                             }
                         });

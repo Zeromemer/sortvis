@@ -149,7 +149,6 @@ impl Sorter {
         let mut state = state.lock().unwrap();
         state.sorting = false;
         state.step = None;
-        // state.stop_time = Some(Instant::now());
         self.state = Arc::new(Mutex::new(state.clone()));
         if let Some(thread) = &self.thread {
             thread.thread().unpark();
