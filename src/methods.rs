@@ -229,4 +229,11 @@ pub static METHODS: &[Method] = &[
             }
         },
     },
+    #[cfg(feature = "fallible")]
+    Method {
+    name: "panic",
+    func: |_int| {
+            panic!("This is a test panic from the 'panic' method!");
+        },
+    },
 ];

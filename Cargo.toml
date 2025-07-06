@@ -8,3 +8,7 @@ eframe = "0.29.1"
 egui = "0.29.1"
 lazy_static = "1.5.0"
 rand = "0.8"
+
+[features]
+# default = ["fallible"]
+fallible = []
