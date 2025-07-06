@@ -14,12 +14,14 @@ use std::time::Duration;
 struct State {
     paused: bool,
     delay: u64,
+    panic: Option<String>,
 }
 
 lazy_static::lazy_static! {
     static ref GLOBAL_STATE: Mutex<State> = Mutex::new(State {
         paused: false,
         delay: 3000,
+        panic: None
     });
 }
 
@@ -242,6 +244,33 @@ impl eframe::App for SortVis {
 
             if state.sorting && !GLOBAL_STATE.lock().unwrap().paused {
                 ctx.request_repaint();
+            }
+
+            drop(state);
+
+            // Show crash dialog if present
+            let mut global = GLOBAL_STATE.lock().unwrap();
+            let mut dismissed = false;
+            if let Some(crash_msg) = &global.panic {
+                egui::Window::new("Crash")
+                    .collapsible(false)
+                    .resizable(false)
+                    .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                    .show(ctx, |ui| {
+                        ui.label(
+                            egui::RichText::new(crash_msg)
+                                .size(24.0)
+                                .strong()
+                        );
+                        if ui.button("OK").clicked() {
+                            dismissed = true;
+                        }
+                    });
+            }
+
+            if dismissed {
+                self.sorter.stop();
+                global.panic = None;
             }
         });
     }

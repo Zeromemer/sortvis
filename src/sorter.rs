@@ -1,4 +1,5 @@
 use crate::GLOBAL_STATE;
+use std::panic::{panic_any, set_hook};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::thread::{spawn, JoinHandle};
@@ -13,6 +14,8 @@ pub enum Step {
 pub struct Interface {
     state: Weak<Mutex<State>>,
 }
+
+struct StopThread;
 
 impl Interface {
     pub fn new(state: Weak<Mutex<State>>) -> Interface {
@@ -37,7 +40,7 @@ impl Interface {
             let mut state = state.lock().unwrap();
             (f)(&mut state)
         } else {
-            panic!("sorter stopped, terminating thread");
+            panic_any(StopThread);
         }
     }
 
@@ -77,7 +80,7 @@ pub struct State {
 pub struct Sorter {
     pub state: Arc<Mutex<State>>,
     pub method: Option<fn(Interface)>,
-    thread: Option<JoinHandle<()>>
+    handle: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
@@ -93,7 +96,7 @@ impl Sorter {
         Self {
             state,
             method: None,
-            thread: None,
+            handle: None,
         }
     }
 
@@ -105,8 +108,8 @@ impl Sorter {
     pub fn start(&mut self, track: bool) {
         let state = self.state.clone();
         {
-            let state1 = state.clone();
-            let mut state1 = state1.lock().unwrap();
+            let state = state.clone();
+            let mut state1 = state.lock().unwrap();
 
             if state1.sorting {
                 return;
@@ -118,18 +121,45 @@ impl Sorter {
         }
 
         if let Some(method) = self.method {
-            self.thread = Some(spawn(move || {
-                let state2 = Arc::downgrade(&state);
+            self.handle = Some(spawn(move || {
+                // let state_panic = state.clone();
+                set_hook(Box::new(move |panic_info| {
+                    let payload = panic_info.payload();
+
+                    if !payload.is::<StopThread>() {
+                        let mut global = GLOBAL_STATE.lock().unwrap();
+                        let payload_str = if let Some(s) = payload.downcast_ref::<&str>() {
+                            String::from(*s)
+                        } else if let Some(s) = payload.downcast_ref::<String>() {
+                            String::from(s.clone())
+                        } else {
+                            format!("{:?}", payload).into()
+                        };
+
+                        global.panic = if let Some(location) = panic_info.location() {
+                            format!(
+                                "Panic at {}:{}: {}",
+                                location.file(),
+                                location.line(),
+                                payload_str
+                            )
+                        } else {
+                            format!("Panic: {}", payload_str)
+                        }.into();
+                    }
+                }));
+
+                let state1 = Arc::downgrade(&state);
                 drop(state);
 
-                method(Interface::new(state2.clone()));
+                method(Interface::new(state1.clone()));
 
-                let state2 = state2.upgrade().unwrap();
-                let mut state2 = state2.lock().unwrap();
-                state2.sorting = false;
-                state2.step = None;
+                let state1 = state1.upgrade().unwrap();
+                let mut state1 = state1.lock().unwrap();
+                state1.sorting = false;
+                state1.step = None;
                 if track {
-                    state2.stop_time = Some(Instant::now());
+                    state1.stop_time = Some(Instant::now());
                 }
             }));
         } else {
@@ -138,8 +168,8 @@ impl Sorter {
     }
 
     pub fn resume(&self) {
-        if let Some(thread) = &self.thread {
-            thread.thread().unpark();
+        if let Some(handle) = &self.handle {
+            handle.thread().unpark();
         }
     }
 
@@ -150,8 +180,8 @@ impl Sorter {
         state.sorting = false;
         state.step = None;
         self.state = Arc::new(Mutex::new(state.clone()));
-        if let Some(thread) = &self.thread {
-            thread.thread().unpark();
+        if let Some(handle) = self.handle.take() {
+            handle.thread().unpark();
         }
     }
 }
