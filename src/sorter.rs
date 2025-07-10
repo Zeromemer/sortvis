@@ -122,7 +122,6 @@ impl Sorter {
 
         if let Some(method) = self.method {
             self.handle = Some(spawn(move || {
-                // let state_panic = state.clone();
                 set_hook(Box::new(move |panic_info| {
                     let payload = panic_info.payload();
 
