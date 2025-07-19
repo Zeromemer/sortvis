@@ -38,9 +38,7 @@ pub static MODIFIERS: &[Method] = &[
             for i in (0..len).rev() {
                 if i % 2 == 0 {
                     target_pos[i] = left;
-                    if left > 0 {
-                        left -= 1;
-                    }
+                    left = left.saturating_sub(1);
                 } else {
                     target_pos[i] = right;
                     if right < len - 1 {
@@ -231,8 +229,8 @@ pub static METHODS: &[Method] = &[
     },
     #[cfg(feature = "fallible")]
     Method {
-    name: "panic",
-    func: |_int| {
+        name: "panic",
+        func: |_int| {
             panic!("This is a test panic from the 'panic' method!");
         },
     },

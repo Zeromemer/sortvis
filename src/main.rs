@@ -3,12 +3,12 @@
 mod methods;
 mod sorter;
 
-use eframe::egui;
+use eframe::{egui, NativeOptions};
 use egui::Button;
 use egui::{ComboBox, TextEdit};
 use methods::{METHODS, MODIFIERS};
 use sorter::Sorter;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 struct State {
@@ -17,18 +17,16 @@ struct State {
     panic: Option<String>,
 }
 
-lazy_static::lazy_static! {
-    static ref GLOBAL_STATE: Mutex<State> = Mutex::new(State {
+static GLOBAL_STATE: LazyLock<Mutex<State>> = LazyLock::new(|| {
+    Mutex::new(State {
         paused: false,
         delay: 3000,
-        panic: None
-    });
-}
+        panic: None,
+    })
+});
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions {
-        ..Default::default()
-    };
+    let options = NativeOptions::default();
     eframe::run_native(
         "Sorting Visualization",
         options,
@@ -66,12 +64,13 @@ impl Default for SortVis {
 }
 
 impl eframe::App for SortVis {
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::cast_precision_loss)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Sorting Visualization");
 
             ui.horizontal(|ui| {
-                let mut global = GLOBAL_STATE.lock().unwrap();
                 // ─── Left: controls ───
                 ui.vertical(|ui| {
                     // Row 1: Generate
@@ -125,6 +124,7 @@ impl eframe::App for SortVis {
 
                     // Row 4: Start/Stop, Pause/Resume, Step
                     ui.horizontal(|ui| {
+                        let mut global = GLOBAL_STATE.lock().unwrap();
                         let label = if sorting_active { "Stop" } else { "Start" };
                         if ui.button(label).clicked() {
                             if sorting_active {
@@ -154,6 +154,7 @@ impl eframe::App for SortVis {
                     });
 
                     // Row 5: Delay slider
+                    let mut global = GLOBAL_STATE.lock().unwrap();
                     ui.horizontal(|ui| {
                         ui.label("Delay (μs)");
                         let mut d = global.delay;
@@ -169,7 +170,7 @@ impl eframe::App for SortVis {
                 // Spacer to push the table right
                 let cell_width = 75.0;
                 let spacing = 10.0;
-                let table_width = 4.0 * cell_width + 4.0 * spacing;
+                let table_width = 4.0f32.mul_add(cell_width, 4.0 * spacing);
                 let avail = ui.available_width();
                 if avail > table_width {
                     ui.add_space(avail - table_width);
@@ -178,18 +179,21 @@ impl eframe::App for SortVis {
                 // Update history
                 let mut state = self.sorter.state.lock().unwrap();
                 if let Some(stop_time) = state.stop_time.take() {
+                    let global = GLOBAL_STATE.lock().unwrap();
                     let elapsed = stop_time.duration_since(state.start_time.unwrap());
                     let result = SortResult {
                         name: METHODS[self.selected_method].name,
-                        data_size: state.data.len() as u32,
+                        data_size: u32::try_from(state.data.len()).unwrap(),
                         delay: global.delay,
                         time: elapsed,
                     };
+                    drop(global);
                     self.history.push(result);
                     if self.history.len() > 4 {
                         self.history.remove(0);
                     }
                 }
+                drop(state);
 
                 // Right: 5×5 table
                 ui.vertical(|ui| {
@@ -231,7 +235,10 @@ impl eframe::App for SortVis {
             for (i, &v) in state.data.iter().enumerate() {
                 let h = graph_area.size().y * (v as f32 / maxv);
                 let rect = egui::Rect::from_min_size(
-                    egui::pos2(graph_area.min.x + i as f32 * bar_w, graph_area.max.y - h),
+                    egui::pos2(
+                        (i as f32).mul_add(bar_w, graph_area.min.x),
+                        graph_area.max.y - h,
+                    ),
                     egui::vec2((bar_w - 2.0).max(bar_w * 0.9), h),
                 );
                 let color = match state.step {
@@ -257,11 +264,7 @@ impl eframe::App for SortVis {
                     .resizable(false)
                     .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                     .show(ctx, |ui| {
-                        ui.label(
-                            egui::RichText::new(crash_msg)
-                                .size(24.0)
-                                .strong()
-                        );
+                        ui.label(egui::RichText::new(crash_msg).size(24.0).strong());
                         if ui.button("OK").clicked() {
                             dismissed = true;
                         }

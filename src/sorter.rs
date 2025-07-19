@@ -18,7 +18,7 @@ pub struct Interface {
 struct StopThread;
 
 impl Interface {
-    pub fn new(state: Weak<Mutex<State>>) -> Interface {
+    pub const fn new(state: Weak<Mutex<State>>) -> Self {
         Self { state }
     }
 
@@ -26,22 +26,25 @@ impl Interface {
     where
         F: FnOnce(&mut State) -> T,
     {
-        if let Some(state) = self.state.upgrade() {
-            let global_state = GLOBAL_STATE.lock().unwrap();
-            if global_state.paused {
-                drop(global_state);
-                thread::park();
-            } else {
-                let delay = global_state.delay;
-                drop(global_state);
-                thread::sleep(std::time::Duration::from_micros(delay));
-            }
+        self.state.upgrade().map_or_else(
+            || {
+                panic_any(StopThread);
+            },
+            |state| {
+                let global_state = GLOBAL_STATE.lock().unwrap();
+                if global_state.paused {
+                    drop(global_state);
+                    thread::park();
+                } else {
+                    let delay = global_state.delay;
+                    drop(global_state);
+                    thread::sleep(std::time::Duration::from_micros(delay));
+                }
 
-            let mut state = state.lock().unwrap();
-            (f)(&mut state)
-        } else {
-            panic_any(StopThread);
-        }
+                let mut state = state.lock().unwrap();
+                (f)(&mut state)
+            },
+        )
     }
 
     pub fn read(&self, i: usize) -> u32 {
@@ -55,7 +58,7 @@ impl Interface {
         self.modify_state(|state| {
             state.step = Some(Step::Swap(i, j));
             state.data.swap(i, j);
-        })
+        });
     }
 
     pub fn len(&self) -> usize {
@@ -108,7 +111,6 @@ impl Sorter {
     pub fn start(&mut self, track: bool) {
         let state = self.state.clone();
         {
-            let state = state.clone();
             let mut state1 = state.lock().unwrap();
 
             if state1.sorting {
@@ -127,24 +129,30 @@ impl Sorter {
 
                     if !payload.is::<StopThread>() {
                         let mut global = GLOBAL_STATE.lock().unwrap();
-                        let payload_str = if let Some(s) = payload.downcast_ref::<&str>() {
-                            String::from(*s)
-                        } else if let Some(s) = payload.downcast_ref::<String>() {
-                            String::from(s.clone())
-                        } else {
-                            format!("{:?}", payload).into()
-                        };
+                        let payload_str = payload.downcast_ref::<&str>().map_or_else(
+                            || {
+                                payload.downcast_ref::<String>().map_or_else(
+                                    || format!("{payload:?}"),
+                                    std::clone::Clone::clone,
+                                )
+                            },
+                            |s| String::from(*s),
+                        );
 
-                        global.panic = if let Some(location) = panic_info.location() {
-                            format!(
-                                "Panic at {}:{}: {}",
-                                location.file(),
-                                location.line(),
-                                payload_str
+                        global.panic = panic_info
+                            .location()
+                            .map_or_else(
+                                || format!("Panic: {payload_str}"),
+                                |location| {
+                                    format!(
+                                        "Panic at {}:{}: {}",
+                                        location.file(),
+                                        location.line(),
+                                        payload_str
+                                    )
+                                },
                             )
-                        } else {
-                            format!("Panic: {}", payload_str)
-                        }.into();
+                            .into();
                     }
                 }));
 
@@ -179,6 +187,7 @@ impl Sorter {
         state.sorting = false;
         state.step = None;
         self.state = Arc::new(Mutex::new(state.clone()));
+        drop(state);
         if let Some(handle) = self.handle.take() {
             handle.thread().unpark();
         }
