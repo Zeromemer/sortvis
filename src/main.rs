@@ -65,7 +65,6 @@ impl Default for SortVis {
 
 impl eframe::App for SortVis {
     #[allow(clippy::too_many_lines)]
-    #[allow(clippy::cast_precision_loss)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Sorting Visualization");
@@ -228,10 +227,13 @@ impl eframe::App for SortVis {
             ui.add_space(20.0);
             let (_, graph_area) =
                 ui.allocate_space(egui::vec2(ui.available_width(), ui.available_height()));
+            #[allow(clippy::cast_precision_loss)]
             let maxv = *state.data.iter().max().unwrap_or(&1) as f32;
             let painter = ui.painter_at(graph_area);
+            #[allow(clippy::cast_precision_loss)]
             let bar_w = graph_area.size().x / state.data.len().max(1) as f32;
 
+            #[allow(clippy::cast_precision_loss)]
             for (i, &v) in state.data.iter().enumerate() {
                 let h = graph_area.size().y * (v as f32 / maxv);
                 let rect = egui::Rect::from_min_size(
