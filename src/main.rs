@@ -83,7 +83,7 @@ impl eframe::App for SortVis {
                         if clicked || pressed_enter {
                             if let Ok(n) = self.data_size_text.parse::<u32>() {
                                 if n > 0 {
-                                    if let Ok(mut s) = self.sorter.state.lock() {
+                                    if let Ok(mut s) = self.sorter.state.write() {
                                         if !s.sorting {
                                             s.data = (1..=n).collect();
                                         }
@@ -176,7 +176,7 @@ impl eframe::App for SortVis {
                 }
 
                 // Update history
-                let mut state = self.sorter.state.lock().unwrap();
+                let mut state = self.sorter.state.write().unwrap();
                 if let Some(stop_time) = state.stop_time.take() {
                     let global = GLOBAL_STATE.lock().unwrap();
                     let elapsed = stop_time.duration_since(state.start_time.unwrap());
@@ -223,7 +223,7 @@ impl eframe::App for SortVis {
             });
 
             // Graph
-            let state = self.sorter.state.lock().unwrap();
+            let state = self.sorter.state.read().unwrap();
             ui.add_space(20.0);
             let (_, graph_area) =
                 ui.allocate_space(egui::vec2(ui.available_width(), ui.available_height()));

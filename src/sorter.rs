@@ -1,6 +1,6 @@
 use crate::GLOBAL_STATE;
 use std::panic::{panic_any, set_hook};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, RwLock, Weak};
 use std::thread;
 use std::thread::{spawn, JoinHandle};
 use std::time::Instant;
@@ -12,13 +12,13 @@ pub enum Step {
 }
 
 pub struct Interface {
-    state: Weak<Mutex<State>>,
+    state: Weak<RwLock<State>>,
 }
 
 struct StopThread;
 
 impl Interface {
-    pub const fn new(state: Weak<Mutex<State>>) -> Self {
+    pub const fn new(state: Weak<RwLock<State>>) -> Self {
         Self { state }
     }
 
@@ -41,7 +41,7 @@ impl Interface {
                     thread::sleep(std::time::Duration::from_micros(delay));
                 }
 
-                let mut state = state.lock().unwrap();
+                let mut state = state.write().unwrap();
                 (f)(&mut state)
             },
         )
@@ -81,14 +81,14 @@ pub struct State {
 }
 
 pub struct Sorter {
-    pub state: Arc<Mutex<State>>,
+    pub state: Arc<RwLock<State>>,
     pub method: Option<fn(Interface)>,
     handle: Option<JoinHandle<()>>,
 }
 
 impl Sorter {
     pub fn new(data: Vec<u32>) -> Self {
-        let state = Arc::new(Mutex::new(State {
+        let state = Arc::new(RwLock::new(State {
             sorting: false,
             data,
             step: None,
@@ -104,14 +104,14 @@ impl Sorter {
     }
 
     pub fn is_sorting(&self) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = self.state.read().unwrap();
         state.sorting
     }
 
     pub fn start(&mut self, track: bool) {
         let state = self.state.clone();
         {
-            let mut state1 = state.lock().unwrap();
+            let mut state1 = state.write().unwrap();
 
             if state1.sorting {
                 return;
@@ -162,7 +162,7 @@ impl Sorter {
                 method(Interface::new(state1.clone()));
 
                 let state1 = state1.upgrade().unwrap();
-                let mut state1 = state1.lock().unwrap();
+                let mut state1 = state1.write().unwrap();
                 state1.sorting = false;
                 state1.step = None;
                 if track {
@@ -183,10 +183,10 @@ impl Sorter {
     pub fn stop(&mut self) {
         let state_clone = self.state.clone();
         let state = state_clone;
-        let mut state = state.lock().unwrap();
+        let mut state = state.write().unwrap();
         state.sorting = false;
         state.step = None;
-        self.state = Arc::new(Mutex::new(state.clone()));
+        self.state = Arc::new(RwLock::new(state.clone()));
         drop(state);
         if let Some(handle) = self.handle.take() {
             handle.thread().unpark();
